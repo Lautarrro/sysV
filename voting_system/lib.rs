@@ -76,13 +76,14 @@ mod voting_system {
             if self.env().caller() != self.owner {
                 return Err(Error::OnlyOwnerCanPerformAction);
             }
+            //Asignar ID
             let id = self.proposal_count;
-
+            // crear la propuesta
             let proposal = Proposal {
                 description: title.clone(),
                 votes: 0,
             };
-
+            // Almacenar la propuesta
             self.proposals.insert(id, &proposal);
             self.proposal_count = self.proposal_count.saturating_add(1);
             //Emite el evento
@@ -147,10 +148,10 @@ mod voting_system {
             let mut contract = VotingSystem::new();
             let accounts = test::default_accounts::<ink::env::DefaultEnvironment>();
             
-            // 1. Verificar inicialización (Punto 4 del PDF)
+            //  Verificar inicializacion
             assert_eq!(contract.total_proposals(), 0);
 
-            // 2. Verificar Control de acceso para el owner (Punto 6 del PDF)
+            // Verificar control de acceso para el owner 
             set_caller(accounts.bob); // Bob intenta crear
             let res = contract.create_proposal(String::from("Falla"));
             assert_eq!(res, Err(Error::OnlyOwnerCanPerformAction));
@@ -158,53 +159,56 @@ mod voting_system {
 
         #[ink::test]
         fn test_creacion_propuestas_y_consulta() {
+            // Crear contrato y establecer caller como owner
             let mut contract = VotingSystem::new();
             let accounts = test::default_accounts::<ink::env::DefaultEnvironment>();
             set_caller(accounts.alice); // Alice es owner por defecto en el constructor
 
-            // Crear múltiples propuestas (Punto 6: "Creación de propuestas")
-            assert_eq!(contract.create_proposal(String::from("Propuesta A")), Ok(0));
-            assert_eq!(contract.create_proposal(String::from("Propuesta B")), Ok(1));
-            
+            // Crear multiples propuestas 
+            assert_eq!(contract.create_proposal(String::from("Propuestarda0")), Ok(0));
+            assert_eq!(contract.create_proposal(String::from("Propuestarda00")), Ok(1));
+            // Verificar conteo de propuestas
             assert_eq!(contract.total_proposals(), 2);
 
-            // Verificar datos públicos (Punto 3: "Funciones obligatorias")
+            // Verificar datos públicos 
             let proposal = contract.get_proposal(0).unwrap();
-            assert_eq!(proposal.0, "Propuesta A"); // .0 es el título/descripción
+            assert_eq!(proposal.0, "Propuestarda0"); // .0 es el descripcion
             assert_eq!(proposal.1, 0);             // .1 son los votos iniciales
         }
 
         #[ink::test]
         fn test_registro_votos_exitoso() {
+            // Crear contrato y propuesta
             let mut contract = VotingSystem::new();
             let accounts = test::default_accounts::<ink::env::DefaultEnvironment>();
-            
+            // Owner crea propuesta
             set_caller(accounts.alice);
-            contract.create_proposal(String::from("Propuesta 1")).unwrap();
+            contract.create_proposal(String::from("Propuestarda1")).unwrap();
 
-            // Distintos usuarios votan (Punto 6: "Registro correcto de votos")
+            // Distintos usuarios votan
             set_caller(accounts.bob);
             assert!(contract.vote(0).is_ok());
-
+            
             set_caller(accounts.charlie);
             assert!(contract.vote(0).is_ok());
-
+            // Verificar conteo de votos
             let (_, votos) = contract.get_proposal(0).unwrap();
             assert_eq!(votos, 2);
         }
 
         #[ink::test]
         fn test_reversion_doble_voto() {
+            // Crear contrato y propuesta
             let mut contract = VotingSystem::new();
             let accounts = test::default_accounts::<ink::env::DefaultEnvironment>();
-            
+            // Owner crea propuesta
             set_caller(accounts.alice);
             contract.create_proposal(String::from("Unico Voto")).unwrap();
-
+            // Usuario vota
             set_caller(accounts.bob);
             assert!(contract.vote(0).is_ok());
             
-            // Reversión al votar dos veces (Punto 6 del PDF)
+            // Reversion al votar dos veces 
             assert_eq!(contract.vote(0), Err(Error::AlreadyVoted));
         }
 
@@ -214,25 +218,26 @@ mod voting_system {
             let accounts = test::default_accounts::<ink::env::DefaultEnvironment>();
             set_caller(accounts.bob);
 
-            // Reversión al votar propuestas inexistentes (Punto 6 del PDF)
+            // Reversion al votar propuestas inexistentes 
             assert_eq!(contract.vote(99), Err(Error::ProposalDoesNotExist));
             assert_eq!(contract.get_proposal(99), Err(Error::ProposalDoesNotExist));
         }
 
         #[ink::test]
         fn test_emision_de_eventos() {
+            // Crear contrato y propuesta
             let mut contract = VotingSystem::new();
             let accounts = test::default_accounts::<ink::env::DefaultEnvironment>();
-            
+            // Owner crea propuesta
             set_caller(accounts.alice);
-            contract.create_proposal(String::from("Evento Test")).unwrap();
-            
+            contract.create_proposal(String::from("Evento Testeardo")).unwrap();
+            // Usuario vota
             set_caller(accounts.bob);
             contract.vote(0).unwrap();
 
-            // Verificar eventos (Punto 5 y 6: "Eventos emitidos correctamente")
+            // Verificar eventos 
             let emitted_events = test::recorded_events().collect::<Vec<_>>();
-            // Debería haber al menos 2 (ProposalCreated y VoteCast)
+            // Debería haber al menos 2 eventos emitidos
             assert!(emitted_events.len() >= 2);
         }
     
