@@ -9,33 +9,45 @@ mod voting_system {
     /// =========================
     /// MODELO
     /// =========================
+
+
+    /// Definición de posibles errores durante la ejecución del contrato.
     #[derive(Debug, PartialEq, Eq)]
     #[ink::scale_derive(Encode, Decode, TypeInfo)]
     #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
     //  ERRORES
     /// =========================
     pub enum Error {
+        /// El usuario no tiene permisos para realizar la acción (solo el owner).
         OnlyOwnerCanPerformAction,
+        /// El identificador de propuesta proporcionado no existe en el storage.
         ProposalDoesNotExist,
+        /// La cuenta ya ha emitido un voto para esta propuesta específica.
         AlreadyVoted,
     }
-
+    /// Estructura que representa una propuesta en el almacenamiento persistente.
     #[ink::scale_derive(Encode, Decode, TypeInfo)]
     #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub struct Proposal {
+        /// Título o descripción detallada de la propuesta.
         pub description: String,
-        pub votes: u32,
+        /// Contador acumulado de votos recibidos.
+        pub votes: u32
     }
+
+
     // EVENTOS
     // =========================
+
+    // Se emite cuando el administrador crea exitosamente una propuesta.
     #[ink(event)]
     pub struct ProposalCreated {
         #[ink(topic)]
         pub id: u32,
         pub title: String,
     }
-
+    /// Se emite cada vez que un usuario registra un voto válido.
     #[ink(event)]
     pub struct VoteCast {
         #[ink(topic)]
@@ -48,9 +60,13 @@ mod voting_system {
     /// =========================
     #[ink(storage)]
     pub struct VotingSystem {
+        /// Mapa persistente de ID de propuesta a sus datos estructurales.
         proposals: Mapping<u32, Proposal>,
+        /// Registro de votantes para evitar duplicidad.
         voters: Mapping<(u32, AccountId), bool>,
+        /// Contador incremental para asignar identificadores únicos a las propuestas.
         proposal_count: u32,
+        /// Dirección de la cuenta que desplegó el contrato (owner).
         owner: AccountId,
     }
 
@@ -69,7 +85,8 @@ mod voting_system {
             }
         }
 
-        /// Crear una propuesta
+        /// Crea una nueva propuesta. Solo accesible por el administrador.
+        /// Retorna el ID de la propuesta creada o un error de permisos.
         #[ink(message)]
         pub fn create_proposal(&mut self, title: String) -> Result<u32, Error> {
             //Valida que el caller sea el owner
@@ -92,7 +109,8 @@ mod voting_system {
             Ok(id)
         }
 
-        /// Votar una propuesta (una vez por cuenta)
+        /// Registra un voto para una propuesta específica. 
+        /// Valida la existencia de la propuesta y que el usuario no haya votado previamente.
         #[ink(message)]
         pub fn vote(&mut self, proposal_id: u32) -> Result<(), Error> {
             let caller = self.env().caller();
@@ -116,14 +134,14 @@ mod voting_system {
             Ok(())
         }
 
-        /// Obtener una propuesta
+        /// Consulta pública de los datos de una propuesta.
         #[ink(message)]
         pub fn get_proposal(&self, proposal_id: u32) -> Result<(String, u32), Error> {
             let proposal = self.proposals.get(proposal_id).ok_or(Error::ProposalDoesNotExist)?;
             Ok((proposal.description, proposal.votes))
         }
 
-        /// Cantidad total de propuestas
+        /// Retorna el número total de propuestas registradas en el sistema.
         #[ink(message)]
         pub fn total_proposals(&self) -> u32 {
             self.proposal_count
@@ -214,6 +232,7 @@ mod voting_system {
 
         #[ink::test]
         fn test_reversion_propuesta_inexistente() {
+            // Crear contrato
             let mut contract = VotingSystem::new();
             let accounts = test::default_accounts::<ink::env::DefaultEnvironment>();
             set_caller(accounts.bob);
